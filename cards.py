@@ -10,3 +10,11 @@ class Card:
 
     def __str__(self):
         return 'Card (%d , %s)' % (self.number, self.color)
+
+    def __eq__(self , other):
+        if not isinstance(other, Card):
+            return False
+        return (self.number == other.number and self.color == other.color)
+
+    def __hash__(self):
+        return hash((self.number , self.color))
