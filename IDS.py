@@ -58,7 +58,7 @@ class State:
         if(parent):
             self.depth = parent.depth + 1
         else:
-            self.depth = 1 
+            self.depth = 0
 
     def addAction(self , action):
         'change the action of this state'
@@ -75,8 +75,8 @@ class State:
         x = []
         for i in self.stateList:
             for j in i:
-                x.append(j)    
-        return hash(tuple(x))  
+                x.append(j) 
+        return hash(tuple(x))           
 
 
 def goalTest(state: list):
@@ -85,13 +85,12 @@ def goalTest(state: list):
             return False
     return True   
 
-class BFS:
-    def __init__(self , partNum ,colorNum, initialList):
+class IDS:
+    def __init__(self , partNum ,colorNum, initialList , initialLimit):
         self.initialState = []
         self.colorNum = colorNum
+        self.initialLimit = initialLimit
         self.partNum = partNum
-        self.frontier = []
-        self.visited = set()
         self.stateAction = {}
         self.currentState = None
         self.expandedNodes = 0
@@ -103,42 +102,52 @@ class BFS:
                 if(j != '#'):
                     temp.append(Card(j))
      
-    
+    def recursive_DLS(self , state: State , limit: int):
+        if(goalTest(state.stateList)): return state
+        elif(limit == 0): return "cutoff"
+        else:
+            cutoff_occured = False
+            alreadyAdded = False
+            self.currentState = copy.deepcopy(state)
+            for i in range(len(state.stateList)):
+                for j in range(len(state.stateList)):
+                    if( j != i):
+                        topCard = getTopCard(state.stateList[i])
+                        if(topCard and canBeAdded(state.stateList[j] ,topCard)):
+                            if(not alreadyAdded):
+                                self.expandedNodes += 1
+                                alreadyAdded = True
+                            self.currentState.addAction("Moved Card %d%s From Pile %d To Pile %d" % ( topCard.number ,topCard.color , i+1 ,j + 1))
+                            self.currentState.stateList[j].append(self.currentState.stateList[i].pop())
+                            self.currentState.parent = state
+                            self.currentState.depth += 1
+                            self.stateAction.update({self.currentState: self.currentState.action}) 
+                            self.createdNodes += 1
+                            result = self.recursive_DLS(self.currentState , limit - 1)
+                            if result == "cutoff" : cutoff_occured = True
+                            elif result != "Failure" : return result
+                            self.currentState = copy.deepcopy(state)
+            if cutoff_occured : return "cutoff"
+            else : return "Failure"                
 
-    def breadthFirstSearch(self):
+    
+    def depth_limited_search(self, limit: int):
+        return self.recursive_DLS(State(self.initialState , None) , limit)
+
+    def iterative_deepening_search(self):
         if(self.colorNum > self.partNum or self.partNum != len(self.initialState)):
             return "Failure"
-        self.currentState = State(copy.copy(self.initialState) , None)
-        if(goalTest(self.currentState.stateList)):
-            return self.currentState
-        self.frontier.append(copy.copy(self.currentState))
+        limit = self.initialLimit
+        while 1:
+            result = self.depth_limited_search(limit)
+            if result != "cutoff" : return result
+            limit += 1
+            self.stateAction = {}
 
-        while True:
-            if(len(self.frontier) == 0):
-                return 'Failure'
-            x = self.frontier.pop(0)
-            self.expandedNodes += 1
-            self.currentState = State(x.stateList  , x.parent , x.action)
-            lastState = copy.deepcopy(self.currentState)
-            self.stateAction.update({lastState : lastState.action})
-            self.visited.add(lastState)
-            for i in range(len(self.currentState.stateList)):
-                for j in range(len(self.currentState.stateList)):
-                    if( j != i):
-                        topCard = getTopCard(self.currentState.stateList[i])
-                        if(topCard and canBeAdded(self.currentState.stateList[j] ,topCard)):
-                            self.currentState.stateList[j].append(self.currentState.stateList[i].pop())
-                            self.createdNodes += 1
-                            if((not self.currentState in self.visited) and (not self.currentState in self.frontier)):
-                                self.currentState.addAction("Moved Card %d%s From Pile %d To Pile %d" % ( topCard.number ,topCard.color , i+1 ,j + 1))
-                                if(goalTest(self.currentState.stateList)):
-                                    self.currentState.parent = lastState    
-                                    self.stateAction.update({self.currentState: self.currentState.action})
-                                    return self.currentState
-                                self.currentState.parent = lastState    
-                                self.frontier.append(copy.copy(self.currentState)) 
-                            self.currentState = copy.deepcopy(lastState)
+    
 
+
+    
 def findInFile():
     fo = open('test.txt' , 'r')
     k , m , n = 0 , 0 , 0
@@ -155,15 +164,17 @@ def findInFile():
 
 
 k , m , n , inputList = findInFile()
-bfs = BFS(k , m , inputList)
+initialLimit = int(input())
+ids = IDS(k , m , inputList , initialLimit)
 startTime = time.time()
-state = bfs.breadthFirstSearch()
+state = ids.iterative_deepening_search()
 endTime = time.time()
+print('``````````````````````````````````````````````````````````````````````````````````````````````````')
 print("\nElapsed Time is: %s minutes and %s seconds" % (int((endTime - startTime) // 60)  ,float((endTime - startTime) % 60)))
 print('\n``````````````````````````````````````````````````````````````````````````````````````````````````')
 if(state == "Failure"):
     print("Search Failed!!")
-    sys.exit(1)
+    sys.exit(1)    
 else:
     print("Final State Is:\n")
     tempState = state
@@ -177,7 +188,7 @@ else:
     print('Actions:')
     actions = []  
     while tempState.parent != None:
-        actions.append(bfs.stateAction.get(tempState))         
+        actions.append(tempState.action)         
         tempState = tempState.parent
     actions.reverse()
     for ac in actions:     
@@ -185,9 +196,9 @@ else:
 print('\n``````````````````````````````````````````````````````````````````````````````````````````````````')
 print("Depth is: %d" % state.depth)
 print('\n``````````````````````````````````````````````````````````````````````````````````````````````````')
-print("Created Nodes Are: %d" % bfs.createdNodes)
+print("Created Nodes Are: %d" % ids.createdNodes)
 print('\n``````````````````````````````````````````````````````````````````````````````````````````````````')
-print("Expanded Nodes Are: %d" % bfs.expandedNodes)
+print("Expanded Nodes Are: %d" % ids.expandedNodes)
 print('\n``````````````````````````````````````````````````````````````````````````````````````````````````')
 
 
