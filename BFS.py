@@ -58,7 +58,7 @@ class State:
         if(parent):
             self.depth = parent.depth + 1
         else:
-            self.depth = 1 
+            self.depth = 0 
 
     def addAction(self , action):
         'change the action of this state'
@@ -118,7 +118,7 @@ class BFS:
                 return 'Failure'
             x = self.frontier.pop(0)
             self.expandedNodes += 1
-            self.currentState = State(x.stateList  , x.parent , x.action)
+            self.currentState = x
             lastState = copy.deepcopy(self.currentState)
             self.stateAction.update({lastState : lastState.action})
             self.visited.add(lastState)
@@ -131,6 +131,7 @@ class BFS:
                             self.createdNodes += 1
                             if((not self.currentState in self.visited) and (not self.currentState in self.frontier)):
                                 self.currentState.addAction("Moved Card %d%s From Pile %d To Pile %d" % ( topCard.number ,topCard.color , i+1 ,j + 1))
+                                self.currentState.depth = lastState.depth + 1
                                 if(goalTest(self.currentState.stateList)):
                                     self.currentState.parent = lastState    
                                     self.stateAction.update({self.currentState: self.currentState.action})

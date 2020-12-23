@@ -55,7 +55,6 @@ class State:
         self.stateList = listState
         self.parent = parent
         self.action = action
-        # self.fValue = fValue
         if(parent):
             self.depth = parent.depth + 1
         else:
@@ -125,7 +124,7 @@ def simplerNumberHeuristic(state):
     return sum
     
 def fValue(state):
-    return (state.depth + max(colorHeuristic(state.stateList) , simplerNumberHeuristic(state)))
+    return (state.depth +  max(colorHeuristic(state.stateList) , simplerNumberHeuristic(state)))
 
 
 class AStar:
@@ -134,6 +133,7 @@ class AStar:
         self.colorNum = colorNum
         self.partNum = partNum
         self.frontier = {}
+        self.visited = []
         self.stateAction = {}
         self.currentState = None
         self.expandedNodes = 0
@@ -154,18 +154,20 @@ class AStar:
         if(goalTest(self.currentState.stateList)):
             return self.currentState
         self.frontier.update({copy.copy(self.currentState) : fValue(self.currentState)})
+        self.visited.append(copy.copy(self.currentState))
 
         while True:
             if(len(self.frontier) == 0):
                 return 'Failure'
             x = min(self.frontier , key=self.frontier.get)
+            parentFValue = self.frontier.get(x)
             self.frontier.pop(x , None)
             self.expandedNodes += 1
             if(goalTest(x.stateList)):
                 return x
             self.currentState = x
             lastState = copy.deepcopy(self.currentState)
-            # self.stateAction.update({lastState : lastState.action})
+            if not lastState in self.visited: self.visited.append(lastState)
             for i in range(len(self.currentState.stateList)):
                 for j in range(len(self.currentState.stateList)):
                     if( j != i):
@@ -176,11 +178,11 @@ class AStar:
                             self.currentState.addAction("Moved Card %d%s From Pile %d To Pile %d" % ( topCard.number ,topCard.color , i+1 ,j + 1))
                             self.currentState.parent = lastState    
                             self.currentState.depth = lastState.depth + 1
-                            # self.stateAction.update({self.currentState: self.currentState.action})
-                            if(goalTest(self.currentState.stateList)):
-                                return self.currentState
                             newFValue = fValue(self.currentState)
-                            if((self.currentState in self.frontier and self.frontier.get(self.currentState) > newFValue) or not self.currentState in self.frontier):
+                            if self.currentState != lastState and newFValue < parentFValue:
+                                newFValue = parentFValue + 1
+                            if(not self.currentState in self.visited and ((self.currentState in self.frontier and self.frontier.get(self.currentState) > newFValue) or not self.currentState in self.frontier)):
+                                self.frontier.pop(self.currentState , None)
                                 self.frontier.update({self.currentState: newFValue})
                             self.currentState = copy.deepcopy(lastState)
 
